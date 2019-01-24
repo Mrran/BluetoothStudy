@@ -1,4 +1,4 @@
-package com.qiaojim.bluetoothstudy;
+package com.tyz.bluetoothstudy;
 
 import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
@@ -14,6 +14,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+
+import com.tyz.bluetoothstudy.R;
 
 /**
  * Created by Administrator on 2017/4/4.

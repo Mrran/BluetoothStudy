@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">BluetoothStudy</string>
+    <string name="repair">点击配对</string>
+    <string name="repaired">已配对</string>
+    <string name="repairing">正在配对</string>
+    <string name="serchdevice">搜索设备</string>
+    <string name="disconnect">断开连接</string>
+    <string name="setvisiable">设置可见</string>
 </resources>

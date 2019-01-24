@@ -25,7 +25,7 @@
         android:gravity="center"
         android:textColor="@android:color/white"/>
 
-    <ListView
+    <android.support.v7.widget.RecyclerView
         android:layout_below="@id/top_tv"
         android:layout_above="@id/bottom_tv"
         android:id="@+id/device_list_view"

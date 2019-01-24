@@ -1,31 +1,27 @@
-package com.qiaojim.bluetoothstudy;
+package com.tyz.bluetoothstudy;
 
-import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.Intent;
-import android.nfc.Tag;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import java.io.InputStream;
+import com.tyz.bluetoothstudy.R;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+import static com.tyz.bluetoothstudy.Params.MSG_DATA;
+
+public class MainActivity extends AppCompatActivity implements Toastinerface {
 
     final String TAG = "MainActivity";
 
@@ -70,7 +66,14 @@ public class MainActivity extends AppCompatActivity {
                     dataTransFragment.updateDataView(dataSend, Params.ME);
                     deviceListFragment.writeData(dataSend);
                     break;
-
+                case Params.CONNECT_FAILE:
+                    Log.e(TAG,"--------- connect faile");
+                    toast("连接失败");
+                    break;
+                case MSG_DATA:
+                    Log.e(TAG,"--------- connect faile");
+                    Toast.makeText(MainActivity.this,msg.getData().getString("data"),Toast.LENGTH_SHORT).show();
+                    break;
             }
         }
     };
@@ -106,12 +109,25 @@ public class MainActivity extends AppCompatActivity {
 
         deviceListFragment=new DeviceListFragment();
         dataTransFragment=new DataTransFragment();
+        deviceListFragment.setToastinerface(this);
         fragmentList.add(deviceListFragment);
         fragmentList.add(dataTransFragment);
 
         pagerAdapter=new MyPagerAdapter(getSupportFragmentManager());
         viewPager.setAdapter(pagerAdapter);
         tabLayout.setupWithViewPager(viewPager);
+    }
+    /**
+     * Toast 提示
+     */
+    @Override
+    public void toast(String str) {
+        Message message = new Message();
+        Bundle bundle=new Bundle();
+        bundle.putString("data", str);
+        message.setData(bundle);//bundle传值，耗时，效率低
+        message.what = MSG_DATA;
+        uiHandler.sendMessage(message);
     }
 
     /**
@@ -139,10 +155,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Toast 提示
-     */
-    public void toast(String str){
-        Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
-    }
+
+
 }

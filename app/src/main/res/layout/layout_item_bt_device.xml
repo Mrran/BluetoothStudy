@@ -55,6 +55,14 @@
             android:textColor="@color/blue"
             android:gravity="center"
             android:textStyle="bold"/>
+        <Button
+            android:id="@+id/device_pair"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:textColor="@color/blue"
+            android:gravity="center"
+            android:text="@string/repair"
+            android:textStyle="bold"/>
     </LinearLayout>
 
 

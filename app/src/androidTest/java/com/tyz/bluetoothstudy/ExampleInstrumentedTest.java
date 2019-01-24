@@ -1,4 +1,4 @@
-package com.qiaojim.bluetoothstudy;
+package com.tyz.bluetoothstudy;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;

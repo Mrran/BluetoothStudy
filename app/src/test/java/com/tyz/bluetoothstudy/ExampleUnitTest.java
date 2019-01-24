@@ -1,4 +1,4 @@
-package com.qiaojim.bluetoothstudy;
+package com.tyz.bluetoothstudy;
 
 import org.junit.Test;
 
