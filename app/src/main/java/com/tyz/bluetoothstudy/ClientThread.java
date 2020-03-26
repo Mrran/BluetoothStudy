@@ -21,72 +21,72 @@ public class ClientThread implements Runnable {
 
     final String TAG = "ClientThread";
 
-    BluetoothAdapter bluetoothAdapter;
-    BluetoothDevice device;
+    BluetoothAdapter mBtAdapter;
+    BluetoothDevice mDevice;
 
-    Handler uiHandler;
+    Handler mUiHandler;
     Handler writeHandler;
 
-    BluetoothSocket socket;
-    OutputStream out;
-    InputStream in;
+    BluetoothSocket mBtClientSocket;
+    OutputStream mClientOutputStream;
+    InputStream mClientInputStream;
     BufferedReader reader;
 
-    ConnectBack mConnectBack;
+    BtConnnectStatusListener mBtConnnectStatusListener;
 
-    public void SetConnectBack(ConnectBack ConnectBack ){
-        this.mConnectBack = ConnectBack;
+    public void SetConnectBack(BtConnnectStatusListener BtConnnectStatusListener) {
+        this.mBtConnnectStatusListener = BtConnnectStatusListener;
     }
 
-    public ClientThread(BluetoothAdapter bluetoothAdapter, BluetoothDevice device,
-                        Handler handler) {
-        this.bluetoothAdapter = bluetoothAdapter;
-        this.device = device;
-        this.uiHandler = handler;
-        BluetoothSocket tmp = null;
+    public ClientThread(BluetoothAdapter mBtAdapter, BluetoothDevice device, Handler handler) {
+        this.mBtAdapter = mBtAdapter;
+        this.mDevice = device;
+        this.mUiHandler = handler;
+        BluetoothSocket tmpSocket = null;
         try {
-            tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(Params.UUID));
+            tmpSocket = device.createRfcommSocketToServiceRecord(UUID.fromString(Params.UUID));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        socket = tmp;
+        mBtClientSocket = tmpSocket;
     }
 
     @Override
     public void run() {
 
         Log.e(TAG, "----------------- do client thread run()");
-        if (bluetoothAdapter.isDiscovering()) {
-            bluetoothAdapter.cancelDiscovery();
+        if (mBtAdapter.isDiscovering()) {
+            mBtAdapter.cancelDiscovery();
         }
 
         try {
             try {
-                // Connect the device through the socket. This will block
+                // Connect the mDevice through the mBtClientSocket. This will block
                 // until it succeeds or throws an exception
-                socket.connect();
+                mBtClientSocket.connect();
             } catch (IOException connectException) {
-                // Unable to connect; close the socket and get out
+                // Unable to connect; close the mBtClientSocket and get mClientOutputStream
                 try {
-                    socket.close();
-                    mConnectBack.connectfaile(device);
+                    mBtClientSocket.close();
+                    mBtConnnectStatusListener.onConnectFailed(mDevice);
                     return;
-                } catch (IOException closeException) { }
-                mConnectBack.connectfaile(device);
+                } catch (IOException closeException) {
+                }
+                mBtConnnectStatusListener.onConnectFailed(mDevice);
                 return;
             }
-            mConnectBack.connectsuccess(device);
-            ConcectReader();
+            mBtConnnectStatusListener.onConnectSuccess(mDevice);
+            connectReader();
         } catch (IOException e) {
             e.printStackTrace();
             Log.e(TAG, "-------------- exception");
         }
     }
 
-    private void ConcectReader() throws IOException {
-        out = socket.getOutputStream();
-        in = socket.getInputStream();
-        //reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), "utf-8"));
+    private void connectReader() throws IOException {
+        mClientOutputStream = mBtClientSocket.getOutputStream();
+        mClientInputStream = mBtClientSocket.getInputStream();
+        //reader = new BufferedReader(new InputStreamReader(mBtClientSocket.getInputStream(), "utf-8"));
 
         new Thread(new Runnable() {
             @Override
@@ -97,13 +97,13 @@ public class ClientThread implements Runnable {
                 int len;
                 String content;
                 try {
-                    while ((len=in.read(buffer)) != -1) {
-                        content=new String(buffer, 0, len);
+                    while ((len = mClientInputStream.read(buffer)) != -1) {
+                        content = new String(buffer, 0, len);
                         Message message = new Message();
                         message.what = Params.MSG_CLIENT_REV_NEW;
                         message.obj = content;
-                        uiHandler.sendMessage(message);
-                        Log.e(TAG, "------------- client read data in while ,send msg ui" + content);
+                        mUiHandler.sendMessage(message);
+                        Log.e(TAG, "------------- client read data mClientInputStream while ,send msg ui" + content);
                     }
 
                 } catch (IOException e) {
@@ -114,25 +114,23 @@ public class ClientThread implements Runnable {
     }
 
 
-    public void write(String data){
+    public void write(String data) {
 //        data = data+"\r\n";
         try {
-            out.write(data.getBytes("utf-8"));
-            Log.e(TAG, "---------- write data ok "+data);
+            mClientOutputStream.write(data.getBytes("utf-8"));
+            Log.e(TAG, "---------- write data ok " + data);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public interface ConnectBack {
+    public interface BtConnnectStatusListener {
+        void onConnectSuccess(BluetoothDevice device);
 
-        public void connectsuccess(BluetoothDevice device);
+        void onConnectFailed(BluetoothDevice device);
 
-        public void connectfaile(BluetoothDevice device);
-
-        public void connecting(BluetoothDevice device);
+        void onConnecting(BluetoothDevice device);
     }
-
 
 
 }

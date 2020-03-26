@@ -1,6 +1,7 @@
 package com.tyz.bluetoothstudy;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -18,7 +19,6 @@ import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -29,7 +29,6 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.jakewharton.rxbinding3.view.RxView;
-import com.tyz.bluetoothstudy.R;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -52,20 +51,20 @@ public class DeviceListFragment extends Fragment {
     final String TAG = "DeviceListFragment";
     String pin = "1234";  //此处为你要连接的蓝牙设备的初始密钥，一般为1234或0000
 
-    RecyclerView listView;
-    MyListAdapter listAdapter;
-    List<BluetoothDevice> deviceList = new ArrayList<>();
+    RecyclerView mDeviceListRv;
+    MyListAdapter mDeviceListAdapter;
+    List<BluetoothDevice> mDeviceList = new ArrayList<>();
 
-    BluetoothAdapter bluetoothAdapter;
-    MyBtReceiver btReceiver;
+    BluetoothAdapter mBtAdapter;
+    MyBtReceiver mBtReceiver;
     IntentFilter intentFilter;
 
     MainActivity mainActivity;
-    Handler uiHandler;
+    Handler mUiHandler;
 
-    ClientThread clientThread;
-    ServerThread serverThread;
-    Toastinerface mtoast;
+    ClientThread mBtClientThread;
+    ServerThread mBtServerThread;
+    Toastinerface mToast;
     boolean is;
 
     private final String ACTIONFILTER = "android.bluetooth.device.action.PAIRING_REQUEST";
@@ -82,17 +81,17 @@ public class DeviceListFragment extends Fragment {
         }
     }
 
-    public void setToastinerface(Toastinerface toastinerface) {
-        this.mtoast = toastinerface;
+    public void setUiToastInerface(Toastinerface toastinerface) {
+        this.mToast = toastinerface;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mBtAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        if (bluetoothAdapter == null) {
+        if (mBtAdapter == null) {
             Log.e(TAG, "--------------- 不支持蓝牙");
             getActivity().finish();
         }
@@ -107,33 +106,30 @@ public class DeviceListFragment extends Fragment {
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
 
-
         final ExecutorService threadExecutor = Executors.newFixedThreadPool(1);
-        listView = (RecyclerView) view.findViewById(R.id.device_list_view);
+        mDeviceListRv = (RecyclerView) view.findViewById(R.id.device_list_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
-
         layoutManager.setOrientation(LinearLayoutManager.VERTICAL);
         // 设置布局管理器
-        listView.setLayoutManager(layoutManager);
-        listAdapter = new MyListAdapter();
-        listView.setAdapter(listAdapter);
-        listAdapter.notifyDataSetChanged();
+        mDeviceListRv.setLayoutManager(layoutManager);
+        mDeviceListAdapter = new MyListAdapter();
+        mDeviceListRv.setAdapter(mDeviceListAdapter);
+        mDeviceListAdapter.notifyDataSetChanged();
 
-        listAdapter.setItemOnclick(new ItemOnClickListener() {
+        mDeviceListAdapter.setOnItemClick(new OnItemClickListener() {
             @Override
-            public void onclick(final int position) {
+            public void onItemClick(final int position) {
 //                 关闭服务器监听
                 Log.e(TAG, "accept:点击位置 ：" + position);
-                itmClikPostion(position, threadExecutor);
-
+                handleItemClick(position, threadExecutor);
             }
         });
-        listAdapter.setbtnOnclick(new btnOnClickListener() {
+        mDeviceListAdapter.setOnBtnclick(new OnBtnClickListener() {
             @Override
-            public void onclick(int position) {
+            public void onBtnClick(int position) {
                 try {
                     //通过工具类ClsUtils,调用createBond方法
-                    BluetoothDevice btDevice = deviceList.get(position);
+                    BluetoothDevice btDevice = mDeviceList.get(position);
                     ClsUtils.createBond(btDevice.getClass(), btDevice);
                 } catch (Exception e) {
 
@@ -144,36 +140,36 @@ public class DeviceListFragment extends Fragment {
         });
     }
 
-    private void itmClikPostion(int position, ExecutorService threadExecutor) {
-        if (serverThread != null) {
-            serverThread.cancel();
-            serverThread = null;
+    private void handleItemClick(int position, ExecutorService threadExecutor) {
+        if (mBtServerThread != null) {
+            mBtServerThread.cancel();
+            mBtServerThread = null;
             Log.e(TAG, "---------------client item click , cancel server thread ," +
                     "server thread is null");
         }
-        final BluetoothDevice device1 = deviceList.get(position);
+        final BluetoothDevice device = mDeviceList.get(position);
         // 开启客户端线程，连接点击的远程设备
-        clientThread = new ClientThread(bluetoothAdapter, device1, uiHandler);
-        threadExecutor.execute(clientThread);
-//                new Thread(clientThread).start();
-        clientThread.SetConnectBack(new ClientThread.ConnectBack() {
+        mBtClientThread = new ClientThread(mBtAdapter, device, mUiHandler);
+        threadExecutor.execute(mBtClientThread);
+//                new Thread(mBtClientThread).start();
+        mBtClientThread.SetConnectBack(new ClientThread.BtConnnectStatusListener() {
             @Override
-            public void connectsuccess(BluetoothDevice device) {
+            public void onConnectSuccess(BluetoothDevice device) {
                 // 通知 ui 连接的服务器端设备
                 Message message = new Message();
                 message.what = Params.MSG_CONNECT_TO_SERVER;
                 message.obj = device;
-                uiHandler.sendMessage(message);
+                mUiHandler.sendMessage(message);
             }
 
             @Override
-            public void connectfaile(BluetoothDevice device) {
-                mtoast.toast("连接失败,请检查服务端是否打开。");
+            public void onConnectFailed(BluetoothDevice device) {
+                mToast.uiToast("连接失败,请检查服务端是否打开。");
             }
 
             @Override
-            public void connecting(BluetoothDevice device) {
-                mtoast.toast("请稍等，正在连接中。");
+            public void onConnecting(BluetoothDevice device) {
+                mToast.uiToast("请稍等，正在连接中。");
             }
         });
     }
@@ -182,7 +178,7 @@ public class DeviceListFragment extends Fragment {
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mainActivity = (MainActivity) getActivity();
-        uiHandler = mainActivity.getUiHandler();
+        mUiHandler = mainActivity.getUiHandler();
 
     }
 
@@ -191,20 +187,21 @@ public class DeviceListFragment extends Fragment {
         super.onResume();
 
         // 蓝牙未打开，询问打开
-        if (!bluetoothAdapter.isEnabled()) {
-            Intent turnOnBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(turnOnBtIntent, Params.REQUEST_ENABLE_BT);
+        if (!mBtAdapter.isEnabled()) {
+            Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(i, Params.REQUEST_ENABLE_BT);
         }
 
         intentFilter = new IntentFilter();
-        btReceiver = new MyBtReceiver();
+        mBtReceiver = new MyBtReceiver();
         intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
         intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         intentFilter.addAction(BluetoothDevice.ACTION_FOUND);
         intentFilter.addAction(ACTIONFILTER);
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        getActivity().registerReceiver(btReceiver, intentFilter);
-        btReceiver.SetPairlistener(new MakePariBlueToothListener() {
+        getActivity().registerReceiver(mBtReceiver, intentFilter);
+
+        mBtReceiver.SetPairlistener(new MakePariBlueToothListener() {
             @Override
             public void whilePari(BluetoothDevice device) {
 
@@ -212,8 +209,8 @@ public class DeviceListFragment extends Fragment {
 
             @Override
             public void pairingSuccess(BluetoothDevice device) {
-                listAdapter.notifyDataSetChanged();
-                mtoast.toast("配对完成");
+                mDeviceListAdapter.notifyDataSetChanged();
+                mToast.uiToast("配对完成");
             }
 
             @Override
@@ -223,51 +220,27 @@ public class DeviceListFragment extends Fragment {
         });
 
         // 蓝牙已开启
-        if (bluetoothAdapter.isEnabled()) {
-            showBondDevice();
+        if (mBtAdapter.isEnabled()) {
+            showBondedDevice();
             // 默认开启服务线程监听
-            if (serverThread != null) {
-                serverThread.cancel();
+            if (mBtServerThread != null) {
+                mBtServerThread.cancel();
             }
             Log.e(TAG, "-------------- new server thread");
-            serverThread = new ServerThread(bluetoothAdapter, uiHandler);
-            new Thread(serverThread).start();
+            mBtServerThread = new ServerThread(mBtAdapter, mUiHandler);
+            new Thread(mBtServerThread).start();
         }
-//        listView.seton(new AdapterView.OnItemClickListener() {
-//            @Override
-//            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-//                // 关闭服务器监听
-//                if (serverThread != null) {
-//                    serverThread.cancel();
-//                    serverThread=null;
-//                    Log.e(TAG , "---------------client item click , cancel server thread ," +
-//                            "server thread is null");
-//                }
-//                BluetoothDevice device = deviceList.get(position);
-//                // 开启客户端线程，连接点击的远程设备
-//                clientThread = new ClientThread(bluetoothAdapter, device, uiHandler);
-//                new Thread(clientThread).start();
-//
-//                // 通知 ui 连接的服务器端设备
-//                Message message = new Message();
-//                message.what = Params.MSG_CONNECT_TO_SERVER;
-//                message.obj = device;
-//                uiHandler.sendMessage(message);
-//
-//            }
-//        });
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        getActivity().unregisterReceiver(btReceiver);
+        getActivity().unregisterReceiver(mBtReceiver);
     }
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.main, menu);
-
     }
 
 
@@ -286,21 +259,21 @@ public class DeviceListFragment extends Fragment {
                 startActivityForResult(enableIntent, Params.REQUEST_ENABLE_VISIBILITY);
                 break;
             case R.id.discovery:
-                if (bluetoothAdapter.isDiscovering()) {
-                    bluetoothAdapter.cancelDiscovery();
+                if (mBtAdapter.isDiscovering()) {
+                    mBtAdapter.cancelDiscovery();
                 }
                 if (Build.VERSION.SDK_INT >= 6.0) {
                     ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                             Params.MY_PERMISSION_REQUEST_CONSTANT);
                 }
 
-                bluetoothAdapter.startDiscovery();
+                mBtAdapter.startDiscovery();
                 break;
             case R.id.disconnect:
-                bluetoothAdapter.disable();
-                deviceList.clear();
-                listAdapter.notifyDataSetChanged();
-                mtoast.toast("蓝牙已关闭");
+                mBtAdapter.disable();
+                mDeviceList.clear();
+                mDeviceListAdapter.notifyDataSetChanged();
+                mToast.uiToast("蓝牙已关闭");
                 break;
         }
         return super.onOptionsItemSelected(item);
@@ -313,15 +286,15 @@ public class DeviceListFragment extends Fragment {
         switch (requestCode) {
             case Params.REQUEST_ENABLE_BT: {
                 if (resultCode == RESULT_OK) {
-                    showBondDevice();
+                    showBondedDevice();
                 }
                 break;
             }
             case Params.REQUEST_ENABLE_VISIBILITY: {
                 if (resultCode == 600) {
-                    mtoast.toast("蓝牙已设置可见");
+                    mToast.uiToast("蓝牙已设置可见");
                 } else if (resultCode == RESULT_CANCELED) {
-                    mtoast.toast("蓝牙设置可见失败,请重试");
+                    mToast.uiToast("蓝牙设置可见失败,请重试");
                 }
                 break;
             }
@@ -331,37 +304,34 @@ public class DeviceListFragment extends Fragment {
     /**
      * 用户打开蓝牙后，显示已绑定的设备列表
      */
-    private void showBondDevice() {
-        deviceList.clear();
-        Set<BluetoothDevice> tmp = bluetoothAdapter.getBondedDevices();
-        for (BluetoothDevice d :
-                tmp) {
-            deviceList.add(d);
-        }
-        listAdapter.notifyDataSetChanged();
+    private void showBondedDevice() {
+        mDeviceList.clear();
+        Set<BluetoothDevice> deviceSet = mBtAdapter.getBondedDevices();
+        mDeviceList.addAll(deviceSet);
+        mDeviceListAdapter.notifyDataSetChanged();
     }
 
 
     /**
-     * 向 socket 写入发送的数据
+     * 向 mBtClientSocket 写入发送的数据
      *
      * @param dataSend
      */
     public void writeData(String dataSend) {
 //        Message message =new Message();
 //        message.obj = dataSend;
-//        if (serverThread!=null){
+//        if (mBtServerThread!=null){
 //            message.what=Params.MSG_SERVER_WRITE_NEW;
-//            serverThread.writeHandler.sendMessage(message);
+//            mBtServerThread.writeHandler.sendMessage(message);
 //        }
-//        if (clientThread!=null){
+//        if (mBtClientThread!=null){
 //            message.what=Params.MSG_CLIENT_WRITE_NEW;
-//            clientThread.writeHandler.sendMessage(message);
+//            mBtClientThread.writeHandler.sendMessage(message);
 //        }
-        if (serverThread != null) {
-            serverThread.write(dataSend);
-        } else if (clientThread != null) {
-            clientThread.write(dataSend);
+        if (mBtServerThread != null) {
+            mBtServerThread.write(dataSend);
+        } else if (mBtClientThread != null) {
+            mBtClientThread.write(dataSend);
         }
     }
 
@@ -374,15 +344,15 @@ public class DeviceListFragment extends Fragment {
         public MyListAdapter() {
         }
 
-        private ItemOnClickListener mitemOnClickListener;
-        private btnOnClickListener mbtnOnClickListener;
+        private OnItemClickListener mOnItemClickListener;
+        private OnBtnClickListener mbtnOnBtnClickListener;
 
-        public void setItemOnclick(ItemOnClickListener ClickListener) {
-            this.mitemOnClickListener = ClickListener;
+        public void setOnItemClick(OnItemClickListener listener) {
+            this.mOnItemClickListener = listener;
         }
 
-        public void setbtnOnclick(btnOnClickListener ClickListener) {
-            this.mbtnOnClickListener = ClickListener;
+        public void setOnBtnclick(OnBtnClickListener ClickListener) {
+            this.mbtnOnBtnClickListener = ClickListener;
         }
 
 
@@ -400,17 +370,18 @@ public class DeviceListFragment extends Fragment {
 
         }
 
+        @SuppressLint("CheckResult")
         @Override
         public void onBindViewHolder(ViewHolder viewHolder, final int position) {
             // 绑定数据到ViewHolder上
-            int code = deviceList.get(position).getBondState();
-            String name = deviceList.get(position).getName();
-            String mac = deviceList.get(position).getAddress();
+            int bondState = mDeviceList.get(position).getBondState();
+            String name = mDeviceList.get(position).getName();
+            String mac = mDeviceList.get(position).getAddress();
             String state;
             if (name == null || name.length() == 0) {
                 name = "未命名设备";
             }
-            if (code == BluetoothDevice.BOND_BONDED) {
+            if (bondState == BluetoothDevice.BOND_BONDED) {
                 state = "ready";
                 viewHolder.deviceState.setTextColor(getResources().getColor(R.color.green));
             } else {
@@ -423,7 +394,7 @@ public class DeviceListFragment extends Fragment {
             viewHolder.deviceName.setText(name);
             viewHolder.deviceMac.setText(mac);
             viewHolder.deviceState.setText(state);
-            if (deviceList.get(position).getBondState() == BluetoothDevice.BOND_BONDED) {
+            if (mDeviceList.get(position).getBondState() == BluetoothDevice.BOND_BONDED) {
                 viewHolder.devicePair.setText(R.string.repaired);
             }
 //            viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
@@ -436,20 +407,20 @@ public class DeviceListFragment extends Fragment {
                     .subscribe(new Consumer<Unit>() {
                         @Override
                         public void accept(Unit unit) throws Exception {
-                            mitemOnClickListener.onclick(position);
+                            mOnItemClickListener.onItemClick(position);
                         }
                     });
             RxView.clicks(viewHolder.devicePair).debounce(10, TimeUnit.SECONDS)
                     .subscribe(new Consumer<Unit>() {
                         @Override
                         public void accept(Unit unit) throws Exception {
-                            mbtnOnClickListener.onclick(position);
+                            mbtnOnBtnClickListener.onBtnClick(position);
                         }
                     });
 //            viewHolder.devicePair.setOnClickListener(new View.OnClickListener() {
 //                @Override
 //                public void onClick(View v) {
-//                    mbtnOnClickListener.onclick(position);
+//                    mbtnOnBtnClickListener.onItemClick(position);
 //                }
 //            });
         }
@@ -462,7 +433,7 @@ public class DeviceListFragment extends Fragment {
 
         @Override
         public int getItemCount() {
-            return deviceList.size();
+            return mDeviceList.size();
         }
 
 
@@ -471,15 +442,15 @@ public class DeviceListFragment extends Fragment {
     /**
      * 该item点击事件对应的接口
      */
-    public interface ItemOnClickListener{
-        public void onclick(int position);
+    public interface OnItemClickListener {
+        void onItemClick(int position);
     }
 
     /**
      * 按钮点击事件对应的接口
      */
-    public interface btnOnClickListener {
-        public void onclick(int position);
+    public interface OnBtnClickListener {
+        void onBtnClick(int position);
     }
 
     /**
@@ -533,14 +504,15 @@ public class DeviceListFragment extends Fragment {
             btDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
             if (BluetoothAdapter.ACTION_DISCOVERY_STARTED.equals(action)) {
-                mtoast.toast("开始搜索 ...");
+                mToast.uiToast("开始搜索 ...");
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                mtoast.toast("搜索结束");
+                mToast.uiToast("搜索结束");
             } else if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (isNewDevice(device)) {
-                    deviceList.add(device);
-                    listAdapter.notifyDataSetChanged();
+                    mDeviceList.add(device);
+                    mDeviceListAdapter.notifyDataSetChanged();
+                    //mDeviceListRv.scrollToPosition(mDeviceList.size()-1);
                     Log.e(TAG, "---------------- " + device.getName());
                 }
             } else if (ACTIONFILTER.equals(action)) {
@@ -585,16 +557,14 @@ public class DeviceListFragment extends Fragment {
      */
     private boolean isNewDevice(BluetoothDevice device) {
         boolean repeatFlag = false;
-        for (BluetoothDevice d :
-                deviceList) {
-            if (d.getAddress().equals(device.getAddress())) {
+        for (BluetoothDevice tmpDevice : mDeviceList) {
+            if (tmpDevice.getAddress().equals(device.getAddress())) {
                 repeatFlag = true;
             }
         }
         //不是已绑定状态，且列表中不重复
         return device.getBondState() != BluetoothDevice.BOND_BONDED && !repeatFlag;
     }
-
 
 
 }

@@ -22,29 +22,28 @@ public class ServerThread implements Runnable {
 
     final String TAG = "ServerThread";
 
-    BluetoothAdapter bluetoothAdapter;
-    BluetoothServerSocket serverSocket =null;
-    BluetoothSocket socket = null;
-    Handler uiHandler;
+    BluetoothAdapter mBtAdapter;
+    BluetoothServerSocket mBtServerSocket =null;
+    BluetoothSocket mConnSocket = null;
+    Handler mUiHandler;
     Handler writeHandler;
 
-    OutputStream out;
-    InputStream in;
+    OutputStream mConnOs;
+    InputStream mConnIs;
     BufferedReader reader;
 
-    boolean acceptFlag = true;
+    boolean mAcceptFlag = true;
 
     public ServerThread(BluetoothAdapter bluetoothAdapter, Handler handler) {
-        this.bluetoothAdapter = bluetoothAdapter;
-        this.uiHandler = handler;
-        BluetoothServerSocket tmp = null;
+        this.mBtAdapter = bluetoothAdapter;
+        this.mUiHandler = handler;
+        BluetoothServerSocket tmpSocket = null;
         try {
-
-            tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(Params.NAME, UUID.fromString(Params.UUID));
+            tmpSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(Params.NAME, UUID.fromString(Params.UUID));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        serverSocket = tmp;
+        mBtServerSocket = tmpSocket;
         Log.e(TAG, "-------------- do new()");
     }
 
@@ -52,23 +51,23 @@ public class ServerThread implements Runnable {
     public void run() {
         Log.e(TAG, "-------------- do run()");
         try {
-            while (acceptFlag) {
-                socket = serverSocket.accept();
+            while (mAcceptFlag) {
+                mConnSocket = mBtServerSocket.accept();
                 // 阻塞，直到有客户端连接
-                if (socket != null) {
-                    Log.e(TAG, "-------------- socket not null, get a client");
+                if (mConnSocket != null) {
+                    Log.e(TAG, "-------------- mBtClientSocket not null, get a client");
 
-                    out = socket.getOutputStream();
-                    in = socket.getInputStream();
-                    //reader=new BufferedReader(new InputStreamReader(socket.getInputStream(),"utf-8"));
+                    mConnOs = mConnSocket.getOutputStream();
+                    mConnIs = mConnSocket.getInputStream();
+                    //reader=new BufferedReader(new InputStreamReader(mBtClientSocket.getInputStream(),"utf-8"));
 
-                    BluetoothDevice remoteDevice = socket.getRemoteDevice();
+                    BluetoothDevice remoteDevice = mConnSocket.getRemoteDevice();
                     Message message = new Message();
                     message.what = Params.MSG_REV_A_CLIENT;
                     message.obj = remoteDevice;
-                    uiHandler.sendMessage(message);
+                    mUiHandler.sendMessage(message);
 
-                    // 读取服务器 socket 数据
+                    // 读取服务器 mBtClientSocket 数据
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -78,13 +77,13 @@ public class ServerThread implements Runnable {
                             int len;
                             String content;
                             try {
-                                while ((len = in.read(buffer)) != -1) {
+                                while ((len = mConnIs.read(buffer)) != -1) {
                                     content = new String(buffer, 0, len);
                                     Message message = new Message();
                                     message.what = Params.MSG_CLIENT_REV_NEW;
                                     message.obj = content;
-                                    uiHandler.sendMessage(message);
-                                    Log.e(TAG, "------------- server read data in while ,send msg ui" + content);
+                                    mUiHandler.sendMessage(message);
+                                    Log.e(TAG, "------------- server read data mClientInputStream while ,send msg ui" + content);
                                 }
 
                             } catch (IOException e) {
@@ -100,7 +99,7 @@ public class ServerThread implements Runnable {
 //                                case Params.MSG_SERVER_WRITE_NEW:
 //                                    String data = msg.obj.toString() + "\n";
 //                                    try {
-//                                        out.write(data.getBytes("utf-8"));
+//                                        mClientOutputStream.write(data.getBytes("utf-8"));
 //                                        Log.e(TAG, "-------------server write data " + data);
 //                                    } catch (IOException e) {
 //                                        e.printStackTrace();
@@ -122,7 +121,7 @@ public class ServerThread implements Runnable {
     public void write(String data){
 //        data = data+"\r\n";
         try {
-            out.write(data.getBytes("utf-8"));
+            mConnOs.write(data.getBytes("utf-8"));
             Log.e(TAG, "---------- write data ok "+data);
         } catch (IOException e) {
             e.printStackTrace();
@@ -131,9 +130,9 @@ public class ServerThread implements Runnable {
 
     public void cancel() {
         try {
-            acceptFlag = false;
-            serverSocket.close();
-            Log.e(TAG, "-------------- do cancel ,flag is "+acceptFlag);
+            mAcceptFlag = false;
+            mBtServerSocket.close();
+            Log.e(TAG, "-------------- do cancel ,flag is "+ mAcceptFlag);
 
         } catch (IOException e) {
             e.printStackTrace();

@@ -14,7 +14,7 @@ public class Params {
     public static final String NAME = "QiaoJimBluetooth";
     public static final int MSG_REV_A_CLIENT = 33;
     public static final int MSG_SERVER_REV_NEW = 44;
-    public static final int ME = 999;
+    public static final int LOCAL = 999;
     public static final int REMOTE = 998;
     public static final int MSG_WRITE_DATA = 563;
     public static final int MSG_SERVER_WRITE_NEW = 346;

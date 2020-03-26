@@ -15,20 +15,17 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import com.tyz.bluetoothstudy.R;
-
 /**
  * Created by Administrator on 2017/4/4.
  */
 public class DataTransFragment extends Fragment {
 
-    TextView connectNameTv;
-    ListView showDataLv;
-    EditText inputEt;
-    Button sendBt;
-    ArrayAdapter<String> dataListAdapter;
+    TextView mDeviceNameTv;
+    ListView mShowDataLv;
+    EditText mInputEt;
+    Button mSendBtn;
+    ArrayAdapter<String> mDataAdapter;
 
-    MainActivity mainActivity;
     Handler uiHandler;
 
     BluetoothDevice remoteDevice;
@@ -41,41 +38,41 @@ public class DataTransFragment extends Fragment {
 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
-        connectNameTv = (TextView) view.findViewById(R.id.device_name_tv);
-        showDataLv = (ListView) view.findViewById(R.id.show_data_lv);
-        inputEt = (EditText) view.findViewById(R.id.input_et);
-        sendBt = (Button) view.findViewById(R.id.send_bt);
-        sendBt.setOnClickListener(new View.OnClickListener() {
+        mDeviceNameTv = (TextView) view.findViewById(R.id.device_name_tv);
+        mShowDataLv = (ListView) view.findViewById(R.id.show_data_lv);
+        mInputEt = (EditText) view.findViewById(R.id.input_et);
+        mSendBtn = (Button) view.findViewById(R.id.send_bt);
+        mSendBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String msgSend = inputEt.getText().toString();
+                String msgSend = mInputEt.getText().toString();
                 Message message = new Message();
                 message.what = Params.MSG_WRITE_DATA;
                 message.obj = msgSend;
                 uiHandler.sendMessage(message);
-
-                inputEt.setText("");
+                mInputEt.setText("");
             }
         });
 
-        dataListAdapter = new ArrayAdapter<String>(getContext(), R.layout.layout_item_new_data);
-        showDataLv.setAdapter(dataListAdapter);
-
+        mDataAdapter = new ArrayAdapter<String>(getContext(), R.layout.layout_item_new_data);
+        mShowDataLv.setAdapter(mDataAdapter);
     }
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mainActivity = (MainActivity) getActivity();
-        uiHandler = mainActivity.getUiHandler();
+        MainActivity act = (MainActivity) getActivity();
+        if (act != null) {
+            uiHandler = act.getUiHandler();
+        }
     }
 
     /**
      * 显示连接远端(客户端)设备
      */
-    public void receiveClient(BluetoothDevice clientDevice) {
+    public void showRemoteDevice(BluetoothDevice clientDevice) {
         this.remoteDevice = clientDevice;
-        connectNameTv.setText("连接设备: " + remoteDevice.getName());
+        mDeviceNameTv.setText("连接设备: " + remoteDevice.getName());
     }
 
     /**
@@ -84,14 +81,14 @@ public class DataTransFragment extends Fragment {
      * @param newMsg
      */
     public void updateDataView(String newMsg,int role) {
-
         if (role == Params.REMOTE) {
             String remoteName = remoteDevice.getName()==null ? "未命名设备":remoteDevice.getName();
             newMsg = remoteName + " : " + newMsg;
-        } else if (role == Params.ME){
+        } else if (role == Params.LOCAL){
             newMsg = "我 : " + newMsg;
         }
-        dataListAdapter.add(newMsg);
+        mDataAdapter.add(newMsg);
+        mShowDataLv.setSelection(mDataAdapter.getCount()-1);
     }
 
     /**
@@ -99,8 +96,8 @@ public class DataTransFragment extends Fragment {
      *
      * @param serverDevice
      */
-    public void connectServer(BluetoothDevice serverDevice) {
+    public void showConnectToServer(BluetoothDevice serverDevice) {
         this.remoteDevice = serverDevice;
-        connectNameTv.setText("连接设备: " + remoteDevice.getName());
+        mDeviceNameTv.setText("连接设备: " + remoteDevice.getName());
     }
 }

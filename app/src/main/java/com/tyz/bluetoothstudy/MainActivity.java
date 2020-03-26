@@ -1,6 +1,6 @@
 package com.tyz.bluetoothstudy;
 
-import android.bluetooth.BluetoothAdapter;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
 import android.os.Handler;
@@ -14,8 +14,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.tyz.bluetoothstudy.R;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,50 +23,46 @@ public class MainActivity extends AppCompatActivity implements Toastinerface {
 
     final String TAG = "MainActivity";
 
-    TabLayout tabLayout;
-    ViewPager viewPager;
-    MyPagerAdapter pagerAdapter;
-    String[] titleList=new String[]{"设备列表","数据传输"};
-    List<Fragment> fragmentList=new ArrayList<>();
+    TabLayout mTabLyt;
+    ViewPager mContentVp;
+    MyPagerAdapter mPagerAdapter;
+    String[] mTitleList =new String[]{"设备列表","数据传输"};
+    List<Fragment> mFragList =new ArrayList<>();
 
-    DeviceListFragment deviceListFragment;
-    DataTransFragment dataTransFragment;
+    DeviceListFragment mDeviceListFrag;
+    DataTransFragment mDataTransFrag;
 
-    BluetoothAdapter bluetoothAdapter;
-
-    Handler uiHandler =new Handler(){
+    @SuppressLint("HandlerLeak")
+    Handler mUiHandler =new Handler(){
         @Override
         public void handleMessage(Message msg) {
 
             switch (msg.what){
                 case Params.MSG_REV_A_CLIENT:
-                    Log.e(TAG,"--------- uihandler set device name, go to data frag");
+                    Log.e(TAG,"--------- uihandler set mDevice name, go to data frag");
                     BluetoothDevice clientDevice = (BluetoothDevice) msg.obj;
-                    dataTransFragment.receiveClient(clientDevice);
-                    viewPager.setCurrentItem(1);
+                    mDataTransFrag.showRemoteDevice(clientDevice);
+                    mContentVp.setCurrentItem(1);
                     break;
                 case Params.MSG_CONNECT_TO_SERVER:
-                    Log.e(TAG,"--------- uihandler set device name, go to data frag");
+                    Log.e(TAG,"--------- uihandler set mDevice name, go to data frag");
                     BluetoothDevice serverDevice = (BluetoothDevice) msg.obj;
-                    dataTransFragment.connectServer(serverDevice);
-                    viewPager.setCurrentItem(1);
+                    mDataTransFrag.showConnectToServer(serverDevice);
+                    mContentVp.setCurrentItem(1);
                     break;
                 case Params.MSG_SERVER_REV_NEW:
-                    String newMsgFromClient = msg.obj.toString();
-                    dataTransFragment.updateDataView(newMsgFromClient, Params.REMOTE);
-                    break;
                 case Params.MSG_CLIENT_REV_NEW:
-                    String newMsgFromServer = msg.obj.toString();
-                    dataTransFragment.updateDataView(newMsgFromServer, Params.REMOTE);
+                    String newMsgFromClient = msg.obj.toString();
+                    mDataTransFrag.updateDataView(newMsgFromClient, Params.REMOTE);
                     break;
                 case Params.MSG_WRITE_DATA:
                     String dataSend = msg.obj.toString();
-                    dataTransFragment.updateDataView(dataSend, Params.ME);
-                    deviceListFragment.writeData(dataSend);
+                    mDataTransFrag.updateDataView(dataSend, Params.LOCAL);
+                    mDeviceListFrag.writeData(dataSend);
                     break;
                 case Params.CONNECT_FAILE:
                     Log.e(TAG,"--------- connect faile");
-                    toast("连接失败");
+                    uiToast("连接失败");
                     break;
                 case MSG_DATA:
                     Log.e(TAG,"--------- connect faile");
@@ -82,52 +76,49 @@ public class MainActivity extends AppCompatActivity implements Toastinerface {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        bluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
-
         initUI();
     }
 
 
     /**
-     * 返回 uiHandler
+     * 返回 mUiHandler
      * @return
      */
     public Handler getUiHandler(){
-        return uiHandler;
+        return mUiHandler;
     }
 
     /**
      * 初始化界面
      */
     private void initUI() {
-        tabLayout= (TabLayout) findViewById(R.id.tab_layout);
-        viewPager= (ViewPager) findViewById(R.id.view_pager);
+        mTabLyt = (TabLayout) findViewById(R.id.tab_layout);
+        mContentVp = (ViewPager) findViewById(R.id.view_pager);
 
-        tabLayout.addTab(tabLayout.newTab().setText(titleList[0]));
-        tabLayout.addTab(tabLayout.newTab().setText(titleList[1]));
+        mTabLyt.addTab(mTabLyt.newTab().setText(mTitleList[0]));
+        mTabLyt.addTab(mTabLyt.newTab().setText(mTitleList[1]));
 
-        deviceListFragment=new DeviceListFragment();
-        dataTransFragment=new DataTransFragment();
-        deviceListFragment.setToastinerface(this);
-        fragmentList.add(deviceListFragment);
-        fragmentList.add(dataTransFragment);
+        mDeviceListFrag =new DeviceListFragment();
+        mDataTransFrag =new DataTransFragment();
+        mDeviceListFrag.setUiToastInerface(this);
+        mFragList.add(mDeviceListFrag);
+        mFragList.add(mDataTransFrag);
 
-        pagerAdapter=new MyPagerAdapter(getSupportFragmentManager());
-        viewPager.setAdapter(pagerAdapter);
-        tabLayout.setupWithViewPager(viewPager);
+        mPagerAdapter =new MyPagerAdapter(getSupportFragmentManager());
+        mContentVp.setAdapter(mPagerAdapter);
+        mTabLyt.setupWithViewPager(mContentVp);
     }
     /**
      * Toast 提示
      */
     @Override
-    public void toast(String str) {
+    public void uiToast(String data) {
         Message message = new Message();
         Bundle bundle=new Bundle();
-        bundle.putString("data", str);
+        bundle.putString("data", data);
         message.setData(bundle);//bundle传值，耗时，效率低
         message.what = MSG_DATA;
-        uiHandler.sendMessage(message);
+        mUiHandler.sendMessage(message);
     }
 
     /**
@@ -141,17 +132,17 @@ public class MainActivity extends AppCompatActivity implements Toastinerface {
 
         @Override
         public Fragment getItem(int position) {
-            return fragmentList.get(position);
+            return mFragList.get(position);
         }
 
         @Override
         public int getCount() {
-            return fragmentList.size();
+            return mFragList.size();
         }
 
         @Override
         public CharSequence getPageTitle(int position) {
-            return titleList[position];
+            return mTitleList[position];
         }
     }
 

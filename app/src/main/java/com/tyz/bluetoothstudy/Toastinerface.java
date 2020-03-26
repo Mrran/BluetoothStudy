@@ -5,5 +5,5 @@ package com.tyz.bluetoothstudy;
  * E-Mail Address：00000000@qq.com
  */
 public interface Toastinerface {
-    void toast(String str);
+    void uiToast(String str);
 }
